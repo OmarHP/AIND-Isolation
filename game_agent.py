@@ -214,17 +214,16 @@ class MinimaxPlayer(IsolationPlayer):
 
         # TODO: finish this function!
         best_move =  (-1, -1) # Best move before search
-        value = float("-inf") # Best score before search
+        best_value = float("-inf") # Best score before search
         # evaluate each move in legal moves
         for move in game.get_legal_moves():
             # Get the maximum posible score playing the current move
-            tmp = self._min_value(game.forecast_move(move), depth - 1)
-            # Check if the current move's score is better than previous
-            if (tmp > value):
+            value = self._min_value(game.forecast_move(move), depth - 1)
+            # Check if the current move's score is better than best value
+            if (value > best_value):
                 # Save best move and score until now
                 best_move = move
-                value = tmp
-        #return best move
+                best_value = value
         return best_move
     
     def _cutoff_test(self, game, depth):
@@ -299,7 +298,23 @@ class AlphaBetaPlayer(IsolationPlayer):
         self.time_left = time_left
 
         # TODO: finish this function!
-        raise NotImplementedError
+        # Initialize the best move so that this function returns something
+        # in case the search fails due to timeout
+        best_move = (-1, -1)
+
+        try:
+            # The try/except block will automatically catch the exception
+            # raised when the timer is about to expire.
+            depth = 1
+            while(True): # Iterative deepening until timeout rises
+                best_move = self.alphabeta(game, depth)
+                depth += 1 # One level deeper
+
+        except SearchTimeout:
+            pass  # Handle any actions required after timeout as needed
+
+        # Return the best move from the last completed search iteration
+        return best_move
 
     def alphabeta(self, game, depth, alpha=float("-inf"), beta=float("inf")):
         """Implement depth-limited minimax search with alpha-beta pruning as
@@ -350,4 +365,62 @@ class AlphaBetaPlayer(IsolationPlayer):
             raise SearchTimeout()
 
         # TODO: finish this function!
-        raise NotImplementedError
+        best_move =  (-1, -1) # Best move before search
+        best_value = float("-inf") # Best score before search
+        # evaluate each move in legal moves
+        for move in game.get_legal_moves():
+            # Get the maximum posible score playing the current move
+            value = self._min_value(game.forecast_move(move), depth -1, alpha, beta)
+            # Check if the current move's score is better than best value
+            if (value > best_value):
+                # Save best move and score until now
+                best_move = move
+                best_value = value
+            # Check if it is possible to prune
+            if value >= beta:
+                return move
+            # Update alpha (lower bound)
+            alpha = max(alpha, value)
+        return best_move
+
+    def _cutoff_test(self, game, depth):
+        """ Check if it is a terminal state or if depth has been reached. """
+        if not game.get_legal_moves() or depth <= 0:
+            return True
+        return False
+
+    def _max_value(self, game, depth, alpha, beta):
+        """ Returns the maximum posible value from all legal moves """
+        if self.time_left() < self.TIMER_THRESHOLD:
+            raise SearchTimeout()
+        # If it's a terminal state or depth has been reached return state' score
+        if self._cutoff_test(game, depth):
+            return self.score(game, self)
+        value = float("-inf")
+        # Evaluate each legal move in order to find the maximum score
+        for move in game.get_legal_moves():
+            value = max(value, self._min_value(game.forecast_move(move), depth - 1, alpha, beta))
+            # Check if it's possible to prune
+            if value >= beta:
+                return value
+            # Update alpha (lower bound)
+            alpha = max(alpha, value)
+        return value
+
+    def _min_value(self, game, depth, alpha, beta):
+        """ Returns the minimum posible value from all legal moves """
+        if self.time_left() < self.TIMER_THRESHOLD:
+            raise SearchTimeout()
+        # If it's a terminal state or depth has been reached return state' score
+        if self._cutoff_test(game, depth):
+            return self.score(game, self)
+        value = float("inf")
+        # Evaluate each legal move in order to find the minimum score
+        for move in game.get_legal_moves():
+            value = min(value, self._max_value(game.forecast_move(move), depth - 1, alpha, beta))
+            # Check if it's possible to prune
+            if value <= alpha:
+                return value
+            # Update beta (upper bound)
+            beta = min(beta, value)
+        return value
