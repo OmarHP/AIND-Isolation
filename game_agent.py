@@ -213,41 +213,51 @@ class MinimaxPlayer(IsolationPlayer):
             raise SearchTimeout()
 
         # TODO: finish this function!
-        best_move =  (-1, -1)
-        v = float("-inf")
+        best_move =  (-1, -1) # Best move before search
+        value = float("-inf") # Best score before search
+        # evaluate each move in legal moves
         for move in game.get_legal_moves():
-            tmp = self.min_value(game.forecast_move(move), depth - 1)
-            if (tmp > v):
+            # Get the maximum posible score playing the current move
+            tmp = self._min_value(game.forecast_move(move), depth - 1)
+            # Check if the current move's score is better than previous
+            if (tmp > value):
+                # Save best move and score until now
                 best_move = move
-                v = tmp
+                value = tmp
+        #return best move
         return best_move
     
-    def terminal_test(self, game, depth):
-        if not game.get_legal_moves() or depth == 0:
+    def _cutoff_test(self, game, depth):
+        """ Check if it is a terminal state or if depth has been reached. """
+        if not game.get_legal_moves() or depth <= 0:
             return True
         return False
 
-    def max_value(self, game, depth):
+    def _max_value(self, game, depth):
+        """ Returns the maximum posible value from all legal moves """
         if self.time_left() < self.TIMER_THRESHOLD:
             raise SearchTimeout()
-
-        if self.terminal_test(game, depth):
+        # If it's a terminal state or depth has been reached return state' score
+        if self._cutoff_test(game, depth):
             return self.score(game, self)
-        v = float("-inf")
+        value = float("-inf")
+        # Evaluate each legal move in order to find the maximum score
         for move in game.get_legal_moves():
-            v = max(v, self.min_value(game.forecast_move(move), depth - 1))
-        return v
+            value = max(value, self._min_value(game.forecast_move(move), depth - 1))
+        return value
 
-    def min_value(self, game, depth):
+    def _min_value(self, game, depth):
+        """ Returns the minimum posible value from all legal moves """
         if self.time_left() < self.TIMER_THRESHOLD:
             raise SearchTimeout()
-
-        if self.terminal_test(game, depth):
+        # If it's a terminal state or depth has been reached return state' score
+        if self._cutoff_test(game, depth):
             return self.score(game, self)
-        v = float("inf")
+        value = float("inf")
+        # Evaluate each legal move in order to find the minimum score
         for move in game.get_legal_moves():
-            v = min(v, self.max_value(game.forecast_move(move), depth - 1))
-        return v
+            value = min(value, self._max_value(game.forecast_move(move), depth - 1))
+        return value
         
 
 class AlphaBetaPlayer(IsolationPlayer):
