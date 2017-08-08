@@ -20,6 +20,18 @@ class IsolationTest(unittest.TestCase):
         self.player2 = "Player2"
         self.game = isolation.Board(self.player1, self.player2)
 
+    def test_getDistances(self):
+        reload(game_agent)
+        self.player1 = game_agent.AlphaBetaPlayer()
+        self.player2 = game_agent.AlphaBetaPlayer()
+        self.game = isolation.Board(self.player1, self.player2)
+        self.game.apply_move((3,3))
+        self.game.apply_move((3,4))
+        self.game.apply_move((1,2))
+        self.game.apply_move((4,2))
+        game_agent.custom_score_2(self.game, self.player1)
+        print(self.game.to_string())
+
 
 if __name__ == '__main__':
     unittest.main()

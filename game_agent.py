@@ -4,11 +4,33 @@ and include the results in your report.
 """
 import random
 
+directions = [(-2, -1), (-2, 1), (-1, -2), (-1, 2),
+                      (1, -2), (1, 2), (2, -1), (2, 1)]
 
 class SearchTimeout(Exception):
     """Subclass base exception for code clarity. """
     pass
 
+def get_distances(game, player):
+    blanks = game.get_blank_spaces()
+    distances = [float("inf") for i in range(game.height * game.width)]
+    row, col = game.get_player_location(player)
+    queue = [(row, col)]
+    distances[row + col * game.height] = 0
+    while len(queue) > 0:
+        row, col = queue.pop(0)
+        dist = distances[row + col * game.height]
+        for dr, dc in directions:
+            next_r = row + dr
+            next_c = col + dc
+            if 0 <= next_r < game.height and 0 <= next_c < game.width:
+                index = next_r + next_c * game.height
+                if (next_r, next_c) in blanks:
+                    if dist + 1 < distances[index]:
+                        distances[index] =  dist + 1
+                        queue.append((next_r, next_c))
+
+    return distances
 
 def custom_score(game, player):
     """Calculate the heuristic value of a game state from the point of view
@@ -100,7 +122,16 @@ def custom_score_2(game, player):
     if game.is_winner(player):
         return float("inf")
 
-    return 0.
+    own_distances = get_distances(game, player)
+    opp_distances = get_distances(game, game.get_opponent(player))
+
+    score = 0
+    for i in range(len(own_distances)):
+        if own_distances[i] < opp_distances[i]:
+            score += 1
+        elif own_distances[i] > opp_distances[i]:
+            score -= 0
+    return score
 
 
 def custom_score_3(game, player):
@@ -132,7 +163,24 @@ def custom_score_3(game, player):
     if game.is_winner(player):
         return float("inf")
 
-    return 0.
+    own_distances = get_distances(game, player)
+    opp_distances = get_distances(game, game.get_opponent(player))
+
+    compare = lambda d1, d2: True if d1 < d2 else False
+    if game.active_player == player:
+        compare = lambda d1, d2: True if d1 <= d2 else False
+
+    max_length = 0
+    score = 0
+
+    for i, own_dist in enumerate(own_distances):
+        opp_dist = opp_distances[i]
+        if compare(own_dist, opp_dist):
+            score += 1
+            if own_dist < max_length:
+                max_length = own_dist
+
+    return 2 * max_length + score
 
 
 class IsolationPlayer:
