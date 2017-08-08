@@ -7,6 +7,10 @@ import random
 directions = [(-2, -1), (-2, 1), (-1, -2), (-1, 2),
                       (1, -2), (1, 2), (2, -1), (2, 1)]
 
+less_comparator = lambda x, y: True if x < y else False
+less_equal_comparator = lambda x, y: True if x <= y else False
+INFINITY = float("inf")
+
 class SearchTimeout(Exception):
     """Subclass base exception for code clarity. """
     pass
@@ -63,34 +67,19 @@ def custom_score(game, player):
     if game.is_winner(player):
         return float("inf")
 
-    own_score = 0
-    moves = game.get_legal_moves(player)
-    blanks = game.get_blank_spaces()
-    directions = [(-2, -1), (-2, 1), (-1, -2), (-1, 2),
-                      (1, -2), (1, 2), (2, -1), (2, 1)]
-    for x, y in moves:
-        for dx, dy in directions:
-            exp = 0
-            if (x + dx, y + dy) in blanks:
-                exp += 1
-        own_score += 2**exp
+    own_distances = get_distances(game, player)
+    opp_distances = get_distances(game, game.get_opponent(player))
 
-    opp_score = 0
-    moves = game.get_legal_moves(game.get_opponent(player))
-    blanks = game.get_blank_spaces()
-    directions = [(-2, -1), (-2, 1), (-1, -2), (-1, 2),
-                      (1, -2), (1, 2), (2, -1), (2, 1)]
-    for x, y in moves:
-        for dx, dy in directions:
-            exp = 0
-            if (x + dx, y + dy) in blanks:
-                exp += 1
-        opp_score += 2**exp
+    compare = less_comparator
+    if game.active_player == player:
+        compare = less_equal_comparator
 
-    return own_score * 10 - opp_score        
-    
-        
-        
+    score = 0
+    for i, own_dist in enumerate(own_distances):
+        opp_dist = opp_distances[i]
+        if compare(own_dist, opp_dist) and own_dist != INFINITY:
+            score += 1
+    return score
 
 
 def custom_score_2(game, player):
@@ -125,13 +114,19 @@ def custom_score_2(game, player):
     own_distances = get_distances(game, player)
     opp_distances = get_distances(game, game.get_opponent(player))
 
-    score = 0
-    for i in range(len(own_distances)):
-        if own_distances[i] < opp_distances[i]:
-            score += 1
-        elif own_distances[i] > opp_distances[i]:
-            score -= 0
-    return score
+    compare = less_comparator
+    if game.active_player == player:
+        compare = less_equal_comparator
+
+    own_moves = len(game.get_legal_moves(player))
+    opp_moves = len(game.get_legal_moves(game.get_opponent(player)))
+
+    max_length = 0
+    for i, own_dist in enumerate(own_distances):
+        opp_dist = opp_distances[i]
+        if compare(own_dist, opp_dist) and own_dist > max_length:
+            max_length = own_dist
+    return own_moves + max_length
 
 
 def custom_score_3(game, player):
@@ -166,21 +161,18 @@ def custom_score_3(game, player):
     own_distances = get_distances(game, player)
     opp_distances = get_distances(game, game.get_opponent(player))
 
-    compare = lambda d1, d2: True if d1 < d2 else False
+    compare = less_comparator
     if game.active_player == player:
-        compare = lambda d1, d2: True if d1 <= d2 else False
+        compare = less_equal_comparator
 
-    max_length = 0
     score = 0
-
     for i, own_dist in enumerate(own_distances):
         opp_dist = opp_distances[i]
         if compare(own_dist, opp_dist):
             score += 1
-            if own_dist < max_length:
-                max_length = own_dist
-
-    return 2 * max_length + score
+        else:
+            score -= 1
+    return score
 
 
 class IsolationPlayer:
@@ -250,7 +242,8 @@ class MinimaxPlayer(IsolationPlayer):
 
         # Initialize the best move so that this function returns something
         # in case the search fails due to timeout
-        best_move = (-1, -1)
+        legal_moves = game.get_legal_moves()
+        best_move =  random.choice(legal_moves) if legal_moves  else (-1, -1) # Best move before search
 
         try:
             # The try/except block will automatically catch the exception
@@ -306,10 +299,11 @@ class MinimaxPlayer(IsolationPlayer):
             raise SearchTimeout()
 
         # TODO: finish this function!
-        best_move =  (-1, -1) # Best move before search
+        legal_moves = game.get_legal_moves()
+        best_move =  random.choice(legal_moves) if legal_moves  else (-1, -1) # Best move before search
         best_value = float("-inf") # Best score before search
         # evaluate each move in legal moves
-        for move in game.get_legal_moves():
+        for move in legal_moves:
             # Get the maximum posible score playing the current move
             value = self._min_value(game.forecast_move(move), depth - 1)
             # Check if the current move's score is better than best value
@@ -393,7 +387,8 @@ class AlphaBetaPlayer(IsolationPlayer):
         # TODO: finish this function!
         # Initialize the best move so that this function returns something
         # in case the search fails due to timeout
-        best_move = (-1, -1)
+        legal_moves = game.get_legal_moves()
+        best_move =  random.choice(legal_moves) if legal_moves  else (-1, -1) # Best move before search
 
         try:
             # The try/except block will automatically catch the exception
@@ -458,10 +453,11 @@ class AlphaBetaPlayer(IsolationPlayer):
             raise SearchTimeout()
 
         # TODO: finish this function!
-        best_move =  (-1, -1) # Best move before search
+        legal_moves = game.get_legal_moves()
+        best_move =  random.choice(legal_moves) if legal_moves  else (-1, -1) # Best move before search
         best_value = float("-inf") # Best score before search
         # evaluate each move in legal moves
-        for move in game.get_legal_moves():
+        for move in legal_moves:
             # Get the maximum posible score playing the current move
             value = self._min_value(game.forecast_move(move), depth -1, alpha, beta)
             # Check if the current move's score is better than best value
