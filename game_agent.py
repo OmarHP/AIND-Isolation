@@ -70,15 +70,13 @@ def custom_score(game, player):
     own_distances = get_distances(game, player)
     opp_distances = get_distances(game, game.get_opponent(player))
 
-    compare = less_comparator
-    if game.active_player == player:
-        compare = less_equal_comparator
-
     score = 0
     for i, own_dist in enumerate(own_distances):
         opp_dist = opp_distances[i]
-        if compare(own_dist, opp_dist) and own_dist != INFINITY:
+        if own_dist < opp_dist:
             score += 1
+        elif own_dist > opp_dist:
+            score -= 1
     return score
 
 
@@ -114,17 +112,13 @@ def custom_score_2(game, player):
     own_distances = get_distances(game, player)
     opp_distances = get_distances(game, game.get_opponent(player))
 
-    compare = less_comparator
-    if game.active_player == player:
-        compare = less_equal_comparator
-
     own_moves = len(game.get_legal_moves(player))
     opp_moves = len(game.get_legal_moves(game.get_opponent(player)))
 
     max_length = 0
     for i, own_dist in enumerate(own_distances):
         opp_dist = opp_distances[i]
-        if compare(own_dist, opp_dist) and own_dist > max_length:
+        if own_dist < opp_dist and own_dist > max_length:
             max_length = own_dist
     return own_moves + max_length
 
