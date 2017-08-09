@@ -109,18 +109,45 @@ def custom_score_2(game, player):
     if game.is_winner(player):
         return float("inf")
 
-    own_distances = get_distances(game, player)
-    opp_distances = get_distances(game, game.get_opponent(player))
+    # if it is earlier in the game, it is not as bad to be in a corner
+    gameState = 1
 
-    own_moves = len(game.get_legal_moves(player))
-    opp_moves = len(game.get_legal_moves(game.get_opponent(player)))
+    if len(game.get_blank_spaces()) < game.width * game.height / 4.:
+        gameState = 4
 
-    max_length = 0
-    for i, own_dist in enumerate(own_distances):
-        opp_dist = opp_distances[i]
-        if own_dist < opp_dist and own_dist > max_length:
-            max_length = own_dist
-    return own_moves + max_length
+    myMoves = game.get_legal_moves(player)
+    selfInCorner = getNumberMovesInCorners(game, myMoves)
+    theirMoves = game.get_legal_moves(game.get_opponent(player))
+    themInCorner = getNumberMovesInCorners(game, theirMoves)
+
+    return float(len(myMoves) - (gameState * len(selfInCorner))
+                 - len(theirMoves) + (gameState * len(themInCorner)))
+
+def getNumberMovesInCorners(game, moves):
+    """ Returns the number of moves which are "ours" within the game that are
+    in a corner
+    Parameters
+    ----------
+    game : `isolation.Board`
+        An instance of `isolation.Board` encoding the current state of the
+        game (e.g., player locations and blocked cells).
+    moves : list of (int,int)
+        List of all moves in the game which are to be considered "ours"
+    Returns
+    -------
+    int
+        number of moves which are in a corner
+    """
+
+    # Four corners
+    corners = [(0, 0),
+               (0, (game.width - 1)),
+               ((game.height - 1), 0),
+               ((game.height - 1), (game.width - 1))]
+
+    movesinCorners = [move for move in moves if move in corners]
+
+    return movesinCorners
 
 
 def custom_score_3(game, player):
@@ -196,6 +223,8 @@ class IsolationPlayer:
         self.score = score_fn
         self.time_left = None
         self.TIMER_THRESHOLD = timeout
+        self.count = 0
+        self.mean = 0
 
 
 class MinimaxPlayer(IsolationPlayer):
@@ -383,17 +412,19 @@ class AlphaBetaPlayer(IsolationPlayer):
         # in case the search fails due to timeout
         legal_moves = game.get_legal_moves()
         best_move =  random.choice(legal_moves) if legal_moves  else (-1, -1) # Best move before search
+        depth = 1
 
         try:
             # The try/except block will automatically catch the exception
             # raised when the timer is about to expire.
-            depth = 1
-            while(True): # Iterative deepening until timeout rises
+            while True: # Iterative deepening until timeout rises
                 best_move = self.alphabeta(game, depth)
                 depth += 1 # One level deeper
-
         except SearchTimeout:
             pass  # Handle any actions required after timeout as needed
+
+        if self.mean == 0:
+            self.mean = depth
 
         # Return the best move from the last completed search iteration
         return best_move
