@@ -3,6 +3,7 @@ test your agent's strength against a set of known agents using tournament.py
 and include the results in your report.
 """
 import random
+import math
 
 directions = [(-2, -1), (-2, 1), (-1, -2), (-1, 2),
                       (1, -2), (1, 2), (2, -1), (2, 1)]
@@ -14,6 +15,32 @@ INFINITY = float("inf")
 class SearchTimeout(Exception):
     """Subclass base exception for code clarity. """
     pass
+
+
+def get_max_depth(game, loc):
+    visited = game._board_state[0:game.height * game.width]
+    return get_max_depth_recursive(game, loc, visited, 0) - 1
+
+def get_max_depth_recursive(game, loc, visited, depth):
+    if depth == 6:
+        return 1
+    row, col = loc
+    max_depth = 0
+    for dr, dc in directions:
+        next_r = row + dr
+        next_c = col + dc
+        if 0 <= next_r < game.height and 0 <= next_c < game.width:
+            index = next_r + next_c * game.height
+            if visited[index] == 0:
+                visited[index] = 1
+                next_loc = (next_r, next_c)
+                value = get_max_depth_recursive(game, next_loc, visited, depth + 1)
+                max_depth = max(max_depth, value)
+                visited[index] = 0
+                if max_depth + depth == 6:
+                    break
+
+    return 1 + max_depth
 
 def get_distances(game, player):
     blanks = game.get_blank_spaces()
@@ -109,19 +136,17 @@ def custom_score_2(game, player):
     if game.is_winner(player):
         return float("inf")
 
-    # if it is earlier in the game, it is not as bad to be in a corner
-    gameState = 1
+    own_moves = game.get_legal_moves(player)
+    opp_moves = game.get_legal_moves(game.get_opponent(player))
+    
+    accum = 0
+    for move in own_moves:
+        accum += (get_max_depth(game, move) + 1)
 
-    if len(game.get_blank_spaces()) < game.width * game.height / 4.:
-        gameState = 4
-
-    myMoves = game.get_legal_moves(player)
-    selfInCorner = getNumberMovesInCorners(game, myMoves)
-    theirMoves = game.get_legal_moves(game.get_opponent(player))
-    themInCorner = getNumberMovesInCorners(game, theirMoves)
-
-    return float(len(myMoves) - (gameState * len(selfInCorner))
-                 - len(theirMoves) + (gameState * len(themInCorner)))
+    for move in opp_moves:
+        accum -= (get_max_depth(game, move) + 1)
+    
+    return accum
 
 def getNumberMovesInCorners(game, moves):
     """ Returns the number of moves which are "ours" within the game that are
@@ -179,21 +204,21 @@ def custom_score_3(game, player):
     if game.is_winner(player):
         return float("inf")
 
-    own_distances = get_distances(game, player)
-    opp_distances = get_distances(game, game.get_opponent(player))
+    # own_moves = game.get_legal_moves(player)
+    # opp_moves = game.get_legal_moves(game.get_opponent(player))
 
-    compare = less_comparator
-    if game.active_player == player:
-        compare = less_equal_comparator
+    # return len(own_moves) - 1.5 * len(opp_moves)
 
-    score = 0
-    for i, own_dist in enumerate(own_distances):
-        opp_dist = opp_distances[i]
-        if compare(own_dist, opp_dist):
-            score += 1
-        else:
-            score -= 1
-    return score
+    curr_move = game.get_player_location(player)
+    opponent_move = game.get_player_location(game.get_opponent(player))
+    center = (game.height / 2, game.width / 2)
+    distance_to_center = math.sqrt((curr_move[0] - center[0])**2 + (curr_move[1] - center[1])**2)
+    distance_to_opponent = math.sqrt((curr_move[0] - opponent_move[0])**2 + (curr_move[1] - opponent_move[1])**2)
+
+    legal_moves = game.get_legal_moves(player)
+    heuristic = float(len(legal_moves)) - (.5 * distance_to_center) - (.1 * distance_to_opponent)
+
+    return heuristic
 
 
 class IsolationPlayer:
