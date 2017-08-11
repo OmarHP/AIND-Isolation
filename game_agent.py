@@ -3,7 +3,6 @@ test your agent's strength against a set of known agents using tournament.py
 and include the results in your report.
 """
 import random
-import math
 
 directions = [(-2, -1), (-2, 1), (-1, -2), (-1, 2),
                       (1, -2), (1, 2), (2, -1), (2, 1)]
@@ -18,14 +17,42 @@ class SearchTimeout(Exception):
 
 
 def get_max_depth(game, loc):
-    visited = game._board_state[0:game.height * game.width]
-    return get_max_depth_recursive(game, loc, visited, 0) - 1
+    """Get the max depth can be reached from any location.
+    
+    Cut of the search at max depth of 6 on grounds of efficiency.
 
-def get_max_depth_recursive(game, loc, visited, depth):
+    Parameters
+    ----------
+    game : `isolation.Board`
+        An instance of `isolation.Board` encoding the current state of the
+        game (e.g., player locations and blocked cells).
+
+    loc : (int, int)
+            A coordinate pair (row, column) indicating where to start the search from
+
+    Returns
+    -------
+    int
+        The max depth found 
+    """
+    # Save the locations that are not reachable or were visited before
+    visited = game._board_state[0:game.height * game.width]
+    # The search is performed by a depth-first search recursive algorithm
+    # 1 is subtracted from result since current location is depth 0
+    return _get_max_depth_recursive(game, loc, visited, 0) - 1 
+
+def _get_max_depth_recursive(game, loc, visited, depth):
+    """This algorithm is based on a depth-first search algorithm to find the height of a tree, 
+       and was modified to be cut off at max depth of 6 (a 7 height)" 
+    """
+
+    # Check if max depth has been reached
     if depth == 6:
         return 1
     row, col = loc
     max_depth = 0
+    
+    # Iterate through each possible move in every direction
     for dr, dc in directions:
         next_r = row + dr
         next_c = col + dc
@@ -34,7 +61,7 @@ def get_max_depth_recursive(game, loc, visited, depth):
             if visited[index] == 0:
                 visited[index] = 1
                 next_loc = (next_r, next_c)
-                value = get_max_depth_recursive(game, next_loc, visited, depth + 1)
+                value = _get_max_depth_recursive(game, next_loc, visited, depth + 1)
                 max_depth = max(max_depth, value)
                 visited[index] = 0
                 if max_depth + depth == 6:
@@ -42,10 +69,10 @@ def get_max_depth_recursive(game, loc, visited, depth):
 
     return 1 + max_depth
 
-def get_distances(game, player):
+def get_distances(game, loc):
     blanks = game.get_blank_spaces()
     distances = [float("inf") for i in range(game.height * game.width)]
-    row, col = game.get_player_location(player)
+    row, col = loc
     queue = [(row, col)]
     distances[row + col * game.height] = 0
     while len(queue) > 0:
@@ -94,8 +121,17 @@ def custom_score(game, player):
     if game.is_winner(player):
         return float("inf")
 
-    own_distances = get_distances(game, player)
-    opp_distances = get_distances(game, game.get_opponent(player))
+    own_location = game.get_player_location(player)
+    opp_location = game.get_player_location(game.get_opponent(player))
+
+    own_distances = [1 if game._board_state[idx] == 0 else float("inf") for idx in range(game.height * game.width)] 
+    opp_distances = [1 if game._board_state[idx] == 0 else float("inf") for idx in range(game.height * game.width)]
+
+    if own_location is not None:
+        own_distances = get_distances(game, own_location)
+
+    if opp_location is not None:
+        opp_distances = get_distances(game, opp_location) 
 
     score = 0
     for i, own_dist in enumerate(own_distances):
@@ -141,38 +177,12 @@ def custom_score_2(game, player):
     
     accum = 0
     for move in own_moves:
-        accum += (get_max_depth(game, move) + 1)
+        accum += (get_max_depth(game, move)) + 1
 
     for move in opp_moves:
-        accum -= (get_max_depth(game, move) + 1)
+        accum -= (get_max_depth(game, move)) + 1
     
     return accum
-
-def getNumberMovesInCorners(game, moves):
-    """ Returns the number of moves which are "ours" within the game that are
-    in a corner
-    Parameters
-    ----------
-    game : `isolation.Board`
-        An instance of `isolation.Board` encoding the current state of the
-        game (e.g., player locations and blocked cells).
-    moves : list of (int,int)
-        List of all moves in the game which are to be considered "ours"
-    Returns
-    -------
-    int
-        number of moves which are in a corner
-    """
-
-    # Four corners
-    corners = [(0, 0),
-               (0, (game.width - 1)),
-               ((game.height - 1), 0),
-               ((game.height - 1), (game.width - 1))]
-
-    movesinCorners = [move for move in moves if move in corners]
-
-    return movesinCorners
 
 
 def custom_score_3(game, player):
@@ -204,21 +214,21 @@ def custom_score_3(game, player):
     if game.is_winner(player):
         return float("inf")
 
-    # own_moves = game.get_legal_moves(player)
-    # opp_moves = game.get_legal_moves(game.get_opponent(player))
+    own_moves = game.get_legal_moves(player)
+    opp_moves = game.get_legal_moves(game.get_opponent(player))
 
-    # return len(own_moves) - 1.5 * len(opp_moves)
+    own_accum = 0
+    for move in own_moves:
+        own_accum += get_max_depth(game, move) + 1
 
-    curr_move = game.get_player_location(player)
-    opponent_move = game.get_player_location(game.get_opponent(player))
-    center = (game.height / 2, game.width / 2)
-    distance_to_center = math.sqrt((curr_move[0] - center[0])**2 + (curr_move[1] - center[1])**2)
-    distance_to_opponent = math.sqrt((curr_move[0] - opponent_move[0])**2 + (curr_move[1] - opponent_move[1])**2)
+    opp_accum = 0
+    for move in opp_moves:
+        opp_accum += get_max_depth(game, move) + 1
 
-    legal_moves = game.get_legal_moves(player)
-    heuristic = float(len(legal_moves)) - (.5 * distance_to_center) - (.1 * distance_to_opponent)
+    own_mean = own_accum / len (own_moves) if len(own_moves) else 0
+    opp_mean = opp_accum / len (opp_moves) if len(opp_moves) else 0
 
-    return heuristic
+    return own_mean - opp_mean
 
 
 class IsolationPlayer:
