@@ -4,11 +4,120 @@ and include the results in your report.
 """
 import random
 
+directions = [(-2, -1), (-2, 1), (-1, -2), (-1, 2),
+                      (1, -2), (1, 2), (2, -1), (2, 1)]
+
+INFINITY = float("inf")
 
 class SearchTimeout(Exception):
     """Subclass base exception for code clarity. """
     pass
 
+
+def get_max_depth(game, loc):
+    """Get the max depth can be reached from location (loc).
+    
+    Stop the search at max depth of 6 on grounds of efficiency.
+
+    Parameters
+    ----------
+    game : `isolation.Board`
+        An instance of `isolation.Board` encoding the current state of the
+        game (e.g., player locations and blocked cells).
+
+    loc : (int, int)
+            A coordinate pair (row, column) indicating where to start the search from
+
+    Returns
+    -------
+    int
+        The max depth found 
+    """
+    # Save the locations that are not reachable or were visited before
+    visited = game._board_state[0:game.height * game.width]
+    # The search is performed by a depth-first search recursive algorithm
+    # 1 is subtracted from result since current location is depth 0
+    return _get_max_depth_recursive(game, loc, visited, 0) - 1 
+
+def _get_max_depth_recursive(game, loc, visited, depth):
+    """This algorithm is based on a depth-first search algorithm to find the height of a tree, 
+       and was modified to be stopped at max depth of 6 (a 7 height)" 
+    """
+    # Check if max depth has been reached
+    if depth == 6:
+        return 1
+    row, col = loc
+    max_depth = 0
+    
+    # Iterate over each possible move in every direction
+    for dr, dc in directions:
+        next_r = row + dr
+        next_c = col + dc
+        # Check if next location is in of bounds
+        if 0 <= next_r < game.height and 0 <= next_c < game.width:
+            index = next_r + next_c * game.height
+            # Check if next location is reachable and has not been visited before
+            if visited[index] == 0:
+                # Mark next location as visited
+                visited[index] = 1
+                next_loc = (next_r, next_c)
+                # Continue the search one level deeper from current location
+                value = _get_max_depth_recursive(game, next_loc, visited, depth + 1)
+                # Pick the max depth found so far
+                max_depth = max(max_depth, value)
+                # Mark next location as not visited
+                visited[index] = 0
+                # Stop search if max depth has been found
+                if max_depth + depth == 6:
+                    break
+
+    return 1 + max_depth
+
+def get_distances(game, loc):
+    """Get distances from location (loc) to every position in board.
+
+    The function is implemented using breadth-first search.
+    
+    Parameters
+    ---------- 
+    game : `isolation.Board`
+        An instance of `isolation.Board` encoding the current state of the
+        game (e.g., player locations and blocked cells).
+
+    loc : (int, int)
+            A coordinate pair (row, column) indicating where to start the search from
+
+    Returns
+    -------
+    list<float>
+        The distances from location to every position in board 
+    """
+    blanks = game.get_blank_spaces()
+    # Initialize all distances with max posible distance 
+    distances = [float("inf") for i in range(game.height * game.width)]
+    row, col = loc
+    queue = [(row, col)]
+    # Initial location is at 0 distance
+    distances[row + col * game.height] = 0
+    while len(queue) > 0:
+        row, col = queue.pop(0)
+        dist = distances[row + col * game.height]
+        # Iterate over each possible move in every direction 
+        for dr, dc in directions:
+            next_r = row + dr
+            next_c = col + dc
+            # Check if next location is not out of bounds
+            if 0 <= next_r < game.height and 0 <= next_c < game.width:
+                index = next_r + next_c * game.height
+                # Check if next location is available
+                if (next_r, next_c) in blanks:
+                    #Check if next location has not been found before
+                    if dist + 1 < distances[index]:
+                        distances[index] =  dist + 1
+                        #Continue searching from next location
+                        queue.append((next_r, next_c))
+
+    return distances
 
 def custom_score(game, player):
     """Calculate the heuristic value of a game state from the point of view
@@ -35,7 +144,38 @@ def custom_score(game, player):
         The heuristic value of the current game state to the specified player.
     """
     # TODO: finish this function!
-    raise NotImplementedError
+    if game.is_loser(player):
+        return float("-inf")
+
+    if game.is_winner(player):
+        return float("inf")
+
+    # Get players location
+    own_location = game.get_player_location(player)
+    opp_location = game.get_player_location(game.get_opponent(player))
+
+    # Initialize distances to 1, it applies if players has not done 
+    # any move so all availables positions are at 1 move distance
+    own_distances = [1 if game._board_state[idx] == 0 else float("inf") for idx in range(game.height * game.width)] 
+    opp_distances = [1 if game._board_state[idx] == 0 else float("inf") for idx in range(game.height * game.width)]
+
+    # If player has done at least one move, get distances to every position from current player location
+    if own_location is not None:
+        own_distances = get_distances(game, own_location)
+
+    # If opponent has done at least one move, get distances to every position from current opponent location
+    if opp_location is not None:
+        opp_distances = get_distances(game, opp_location) 
+
+    score = 0
+    # Count how many positions are closer to each player
+    for i, own_dist in enumerate(own_distances):
+        opp_dist = opp_distances[i]
+        if own_dist < opp_dist:
+            score += 1
+        elif own_dist > opp_dist:
+            score -= 1
+    return float (score)
 
 
 def custom_score_2(game, player):
@@ -61,7 +201,28 @@ def custom_score_2(game, player):
         The heuristic value of the current game state to the specified player.
     """
     # TODO: finish this function!
-    raise NotImplementedError
+    if game.is_loser(player):
+        return float("-inf")
+
+    if game.is_winner(player):
+        return float("inf")
+    
+    # Get player's legal moves
+    own_moves = game.get_legal_moves(player)
+    # Get opponent's legal moves
+    opp_moves = game.get_legal_moves(game.get_opponent(player))
+    
+    accum = 0
+    # Get max reachable depth from each player's legal move and sum up
+    for move in own_moves:
+        accum += (get_max_depth(game, move)) + 1
+
+    # Get max reachable depth from each opponents's 
+    # legal move and substrac from player' sum
+    for move in opp_moves:
+        accum -= (get_max_depth(game, move)) + 1
+    
+    return float (accum)
 
 
 def custom_score_3(game, player):
@@ -87,7 +248,32 @@ def custom_score_3(game, player):
         The heuristic value of the current game state to the specified player.
     """
     # TODO: finish this function!
-    raise NotImplementedError
+    if game.is_loser(player):
+        return float("-inf")
+
+    if game.is_winner(player):
+        return float("inf")
+
+    # Get player's legal moves
+    own_moves = game.get_legal_moves(player)
+    # Get opponent's legal moves
+    opp_moves = game.get_legal_moves(game.get_opponent(player))
+
+    # Sum up max reachable depth from each player's legal move
+    own_accum = 0
+    for move in own_moves:
+        own_accum += get_max_depth(game, move) + 1
+
+    # Sum up max reachable depth from each opponent's legal move
+    opp_accum = 0
+    for move in opp_moves:
+        opp_accum += get_max_depth(game, move) + 1
+
+    # Calculate the max reachable depth mean for each player
+    own_mean = own_accum / len (own_moves) if len(own_moves) else 0
+    opp_mean = opp_accum / len (opp_moves) if len(opp_moves) else 0
+
+    return float (own_mean - opp_mean)
 
 
 class IsolationPlayer:
@@ -157,7 +343,8 @@ class MinimaxPlayer(IsolationPlayer):
 
         # Initialize the best move so that this function returns something
         # in case the search fails due to timeout
-        best_move = (-1, -1)
+        legal_moves = game.get_legal_moves()
+        best_move =  random.choice(legal_moves) if legal_moves  else (-1, -1) # Best move before search
 
         try:
             # The try/except block will automatically catch the exception
@@ -213,10 +400,11 @@ class MinimaxPlayer(IsolationPlayer):
             raise SearchTimeout()
 
         # TODO: finish this function!
-        best_move =  (-1, -1) # Best move before search
+        legal_moves = game.get_legal_moves()
+        best_move =  random.choice(legal_moves) if legal_moves  else (-1, -1) # Best move before search
         best_value = float("-inf") # Best score before search
         # evaluate each move in legal moves
-        for move in game.get_legal_moves():
+        for move in legal_moves:
             # Get the maximum posible score playing the current move
             value = self._min_value(game.forecast_move(move), depth - 1)
             # Check if the current move's score is better than best value
@@ -300,16 +488,16 @@ class AlphaBetaPlayer(IsolationPlayer):
         # TODO: finish this function!
         # Initialize the best move so that this function returns something
         # in case the search fails due to timeout
-        best_move = (-1, -1)
+        legal_moves = game.get_legal_moves()
+        best_move =  random.choice(legal_moves) if legal_moves  else (-1, -1) # Best move before search
+        depth = 1
 
         try:
             # The try/except block will automatically catch the exception
             # raised when the timer is about to expire.
-            depth = 1
-            while(True): # Iterative deepening until timeout rises
+            while True: # Iterative deepening until timeout rises
                 best_move = self.alphabeta(game, depth)
                 depth += 1 # One level deeper
-
         except SearchTimeout:
             pass  # Handle any actions required after timeout as needed
 
@@ -365,10 +553,11 @@ class AlphaBetaPlayer(IsolationPlayer):
             raise SearchTimeout()
 
         # TODO: finish this function!
-        best_move =  (-1, -1) # Best move before search
+        legal_moves = game.get_legal_moves()
+        best_move =  random.choice(legal_moves) if legal_moves  else (-1, -1) # Best move before search
         best_value = float("-inf") # Best score before search
         # evaluate each move in legal moves
-        for move in game.get_legal_moves():
+        for move in legal_moves:
             # Get the maximum posible score playing the current move
             value = self._min_value(game.forecast_move(move), depth -1, alpha, beta)
             # Check if the current move's score is better than best value
