@@ -23,7 +23,7 @@ from sample_players import (RandomPlayer, open_move_score,
 from game_agent import (MinimaxPlayer, AlphaBetaPlayer, custom_score,
                         custom_score_2, custom_score_3)
 
-NUM_MATCHES = 20  # number of matches against each opponent
+NUM_MATCHES = 5  # number of matches against each opponent
 TIME_LIMIT = 150  # number of milliseconds before timeout
 
 DESCRIPTION = """
@@ -105,13 +105,7 @@ def play_matches(cpu_agents, test_agents, num_matches):
                 round_totals[i],round_totals[i+1]
             ) for i in range(0, len(round_totals), 2)
         ]))
-        if isinstance(agent.player, AlphaBetaPlayer) :
-            print(agent.name, agent.player.mean, end='\n')
-            agent.player.mean = 0
-        for ag in test_agents:
-            print(ag.name, ag.player.mean, end='\n')
-            ag.player.mean = 0
-        
+
     print("-" * 74)
     print('{:^9}{:^13}'.format("", "Win Rate:") +
         ''.join([

@@ -175,7 +175,7 @@ def custom_score(game, player):
             score += 1
         elif own_dist > opp_dist:
             score -= 1
-    return score
+    return float (score)
 
 
 def custom_score_2(game, player):
@@ -222,7 +222,7 @@ def custom_score_2(game, player):
     for move in opp_moves:
         accum -= (get_max_depth(game, move)) + 1
     
-    return accum
+    return float (accum)
 
 
 def custom_score_3(game, player):
@@ -273,7 +273,7 @@ def custom_score_3(game, player):
     own_mean = own_accum / len (own_moves) if len(own_moves) else 0
     opp_mean = opp_accum / len (opp_moves) if len(opp_moves) else 0
 
-    return own_mean - opp_mean
+    return float (own_mean - opp_mean)
 
 
 class IsolationPlayer:
@@ -303,8 +303,6 @@ class IsolationPlayer:
         self.score = score_fn
         self.time_left = None
         self.TIMER_THRESHOLD = timeout
-        self.count = 0
-        self.mean = 0
 
 
 class MinimaxPlayer(IsolationPlayer):
@@ -502,9 +500,6 @@ class AlphaBetaPlayer(IsolationPlayer):
                 depth += 1 # One level deeper
         except SearchTimeout:
             pass  # Handle any actions required after timeout as needed
-
-        if self.mean == 0:
-            self.mean = depth
 
         # Return the best move from the last completed search iteration
         return best_move
